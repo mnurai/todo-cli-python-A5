@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+import functools
+from collections.abc import Callable
+from typing import ParamSpec, TypeVar
+
 import typer
 from rich.console import Console
 
@@ -22,23 +26,47 @@ controller = TaskController.create_default()
 ui = TaskUI()
 
 
+P = ParamSpec("P")
+R = TypeVar("R")
+
+DOMAIN_ERRORS = (
+    InvalidTaskDescriptionError,
+    TaskAlreadyCompletedError,
+    TaskNotFoundError,
+)
+
+
+def handle_domain_errors(command: Callable[P, R]) -> Callable[P, R]:
+    """
+    Traduce las excepciones de dominio en un mensaje de error y código de salida 1.
+
+    Centraliza el bloque try/except que antes se repetía en cada comando.
+    """
+
+    @functools.wraps(command)
+    def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
+        try:
+            return command(*args, **kwargs)
+        except DOMAIN_ERRORS as error:
+            ui.show_error(str(error))
+            raise typer.Exit(code=1) from error
+
+    return wrapper
+
+
 @app.command("add")
+@handle_domain_errors
 def add_task(description: str) -> None:
     """
     Agrega una nueva tarea.
     """
-    try:
-        task = controller.add_task(description)
+    task = controller.add_task(description)
 
-        ui.show_success(
-            f"Tarea agregada correctamente.\n\n"
-            f"ID: {task.id}\n"
-            f"Descripción: {task.description}"
-        )
-
-    except InvalidTaskDescriptionError as error:
-        ui.show_error(str(error))
-        raise typer.Exit(code=1) from error
+    ui.show_success(
+        f"Tarea agregada correctamente.\n\n"
+        f"ID: {task.id}\n"
+        f"Descripción: {task.description}"
+    )
 
 
 @app.command("list")
@@ -57,26 +85,20 @@ def list_tasks() -> None:
 
 
 @app.command("complete")
+@handle_domain_errors
 def complete_task(task_id: int) -> None:
     """
     Marca una tarea como completada.
     """
-    try:
-        task = controller.complete_task(task_id)
+    task = controller.complete_task(task_id)
 
-        ui.show_success(
-            f"La tarea #{task.id} fue marcada como completada."
-        )
-
-    except (
-        TaskNotFoundError,
-        TaskAlreadyCompletedError,
-    ) as error:
-        ui.show_error(str(error))
-        raise typer.Exit(code=1) from error
+    ui.show_success(
+        f"La tarea #{task.id} fue marcada como completada."
+    )
 
 
 @app.command("remove")
+@handle_domain_errors
 def remove_task(
     task_id: int,
     yes: bool = typer.Option(
@@ -89,38 +111,29 @@ def remove_task(
     """
     Elimina una tarea.
     """
-    try:
-        task = controller.get_task(task_id)
+    task = controller.get_task(task_id)
 
-        if not yes and not ui.confirm(
-            f"¿Desea eliminar la tarea #{task.id}?"
-        ):
-            ui.show_warning("Operación cancelada.")
-            return
+    if not yes and not ui.confirm(
+        f"¿Desea eliminar la tarea #{task.id}?"
+    ):
+        ui.show_warning("Operación cancelada.")
+        return
 
-        controller.delete_task(task_id)
+    controller.delete_task(task_id)
 
-        ui.show_success(
-            f"La tarea #{task_id} fue eliminada."
-        )
-
-    except TaskNotFoundError as error:
-        ui.show_error(str(error))
-        raise typer.Exit(code=1) from error
+    ui.show_success(
+        f"La tarea #{task_id} fue eliminada."
+    )
 
 
 @app.command("show")
+@handle_domain_errors
 def show_task(task_id: int) -> None:
     """
     Muestra una tarea específica.
     """
-    try:
-        task = controller.get_task(task_id)
-        ui.show_task(task)
-
-    except TaskNotFoundError as error:
-        ui.show_error(str(error))
-        raise typer.Exit(code=1) from error
+    task = controller.get_task(task_id)
+    ui.show_task(task)
 
 
 @app.command("pending")
@@ -156,6 +169,7 @@ def completed_tasks() -> None:
 
 
 @app.command("update")
+@handle_domain_errors
 def update_task(
     task_id: int,
     description: str,
@@ -163,22 +177,14 @@ def update_task(
     """
     Actualiza la descripción de una tarea.
     """
-    try:
-        task = controller.update_description(
-            task_id,
-            description,
-        )
+    task = controller.update_description(
+        task_id,
+        description,
+    )
 
-        ui.show_success(
-            f"La tarea #{task.id} fue actualizada."
-        )
-
-    except (
-        TaskNotFoundError,
-        InvalidTaskDescriptionError,
-    ) as error:
-        ui.show_error(str(error))
-        raise typer.Exit(code=1) from error
+    ui.show_success(
+        f"La tarea #{task.id} fue actualizada."
+    )
 
 
 @app.command("search")

@@ -2,10 +2,19 @@ from __future__ import annotations
 
 import json
 import os
+import tempfile
 from pathlib import Path
 from typing import Protocol, runtime_checkable
 
 from todo_cli.models import Task
+
+
+class StorageCorruptedError(Exception):
+    """
+    Se lanza cuando el archivo de tareas existe pero no se puede interpretar.
+
+    El archivo no se modifica: sobrescribirlo destruiría las tareas guardadas.
+    """
 
 
 def get_default_storage_path() -> Path:
@@ -90,25 +99,48 @@ class JsonStorage:
                 mode="r",
                 encoding="utf-8",
             ) as file:
-                return json.load(file)
+                data = json.load(file)
 
-        except json.JSONDecodeError:
-            return []
+        except json.JSONDecodeError as error:
+            raise StorageCorruptedError(
+                f"El archivo de tareas '{self._file_path}' está dañado "
+                f"(JSON inválido, línea {error.lineno}). No se modificó; "
+                "restáurelo o corríjalo antes de continuar."
+            ) from error
+
+        if not isinstance(data, list):
+            raise StorageCorruptedError(
+                f"El archivo de tareas '{self._file_path}' está dañado "
+                "(se esperaba una lista de tareas). No se modificó."
+            )
+
+        return data
 
     def _save_raw(self, data: list[dict]) -> None:
         """
         Guarda una lista de diccionarios en el archivo JSON.
+
+        Escritura atómica: se escribe un archivo temporal en el mismo directorio
+        y luego se reemplaza el original, para que un fallo a mitad de escritura
+        nunca deje el archivo de tareas truncado.
         """
-        with self._file_path.open(
-            mode="w",
-            encoding="utf-8",
-        ) as file:
-            json.dump(
-                data,
-                file,
-                indent=4,
-                ensure_ascii=False,
-            )
+        fd, tmp_name = tempfile.mkstemp(
+            dir=self._file_path.parent,
+            prefix=f".{self._file_path.name}.",
+            suffix=".tmp",
+        )
+        try:
+            with os.fdopen(fd, mode="w", encoding="utf-8") as file:
+                json.dump(
+                    data,
+                    file,
+                    indent=4,
+                    ensure_ascii=False,
+                )
+            os.replace(tmp_name, self._file_path)
+        except BaseException:
+            Path(tmp_name).unlink(missing_ok=True)
+            raise
 
     def load_tasks(self) -> list[Task]:
         """
@@ -116,10 +148,16 @@ class JsonStorage:
         """
         raw_tasks = self._load_raw()
 
-        return [
-            Task.from_dict(task)
-            for task in raw_tasks
-        ]
+        try:
+            return [
+                Task.from_dict(task)
+                for task in raw_tasks
+            ]
+        except (KeyError, TypeError, ValueError) as error:
+            raise StorageCorruptedError(
+                f"El archivo de tareas '{self._file_path}' está dañado "
+                f"(registro de tarea inválido: {error!r}). No se modificó."
+            ) from error
 
     def save_tasks(self, tasks: list[Task]) -> None:
         """

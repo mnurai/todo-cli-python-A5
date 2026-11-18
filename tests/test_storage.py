@@ -1,6 +1,13 @@
 from pathlib import Path
 
-from todo_cli.storage import JsonStorage, TaskStorage, get_default_storage_path
+import pytest
+
+from todo_cli.storage import (
+    JsonStorage,
+    StorageCorruptedError,
+    TaskStorage,
+    get_default_storage_path,
+)
 
 
 def test_storage_implements_protocol(tmp_path):
@@ -20,12 +27,16 @@ def test_initialize_and_save_load(tmp_path):
     assert len(storage.load_tasks()) == 1
 
 
-def test_storage_handles_corrupted_json(tmp_path):
+def test_storage_rejects_corrupted_json(tmp_path):
+    # Was test_storage_handles_corrupted_json, which asserted load_tasks() == [].
+    # That behaviour caused silent data loss (risk R1), so the expectation changed.
     file_path = tmp_path / "corrupted.json"
     file_path.write_text("invalid json content {{{", encoding="utf-8")
 
     storage = JsonStorage(file_path)
-    assert storage.load_tasks() == []
+    with pytest.raises(StorageCorruptedError):
+        storage.load_tasks()
+    assert file_path.read_text(encoding="utf-8") == "invalid json content {{{"
 
 
 def test_storage_find_and_replace(tmp_path):

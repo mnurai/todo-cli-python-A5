@@ -13,6 +13,7 @@ from todo_cli.controllers import (
     TaskController,
     TaskNotFoundError,
 )
+from todo_cli.storage import StorageCorruptedError
 from todo_cli.ui import TaskUI
 
 app = typer.Typer(
@@ -33,6 +34,7 @@ DOMAIN_ERRORS = (
     InvalidTaskDescriptionError,
     TaskAlreadyCompletedError,
     TaskNotFoundError,
+    StorageCorruptedError,
 )
 
 
@@ -70,6 +72,7 @@ def add_task(description: str) -> None:
 
 
 @app.command("list")
+@handle_domain_errors
 def list_tasks() -> None:
     """
     Lista todas las tareas.
@@ -137,6 +140,7 @@ def show_task(task_id: int) -> None:
 
 
 @app.command("pending")
+@handle_domain_errors
 def pending_tasks() -> None:
     """
     Lista únicamente las tareas pendientes.
@@ -153,6 +157,7 @@ def pending_tasks() -> None:
 
 
 @app.command("completed")
+@handle_domain_errors
 def completed_tasks() -> None:
     """
     Lista únicamente las tareas completadas.
@@ -188,6 +193,7 @@ def update_task(
 
 
 @app.command("search")
+@handle_domain_errors
 def search_tasks(query: str) -> None:
     """
     Busca tareas por coincidencia de texto en la descripción.
@@ -209,6 +215,7 @@ def search_tasks(query: str) -> None:
 
 
 @app.command("clear-completed")
+@handle_domain_errors
 def clear_completed(
     yes: bool = typer.Option(
         False,
@@ -240,6 +247,7 @@ def clear_completed(
 
 
 @app.command("stats")
+@handle_domain_errors
 def statistics() -> None:
     """
     Muestra estadísticas generales.

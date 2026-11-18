@@ -24,7 +24,7 @@ def test_cli_crud_flow(monkeypatch, tmp_path):
 
     # Re-initialize controller with custom storage
     from todo_cli import main
-    main.controller = main.TaskController.create_default(test_db)
+    main._controller = main.TaskController.create_default(test_db)
 
     # 1. Add
     res = runner.invoke(app, ["add", "Write documentation"])

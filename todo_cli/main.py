@@ -23,8 +23,22 @@ app = typer.Typer(
 )
 
 console = Console()
-controller = TaskController.create_default()
 ui = TaskUI()
+
+_controller: TaskController | None = None
+
+
+def get_controller() -> TaskController:
+    """
+    Crea el controlador la primera vez que un comando lo necesita.
+
+    Antes se creaba al importar el módulo, lo que creaba ~/.todo_cli/tasks.json
+    (o abría ./data/tasks.json) incluso con --help o al ejecutar los tests.
+    """
+    global _controller
+    if _controller is None:
+        _controller = TaskController.create_default()
+    return _controller
 
 
 P = ParamSpec("P")
@@ -62,7 +76,7 @@ def add_task(description: str) -> None:
     """
     Agrega una nueva tarea.
     """
-    task = controller.add_task(description)
+    task = get_controller().add_task(description)
 
     ui.show_success(
         f"Tarea agregada correctamente.\n\n"
@@ -77,13 +91,13 @@ def list_tasks() -> None:
     """
     Lista todas las tareas.
     """
-    tasks = controller.list_tasks()
+    tasks = get_controller().list_tasks()
 
     ui.show_tasks(tasks)
     ui.show_statistics(
-        total=controller.task_count(),
-        pending=controller.pending_count(),
-        completed=controller.completed_count(),
+        total=get_controller().task_count(),
+        pending=get_controller().pending_count(),
+        completed=get_controller().completed_count(),
     )
 
 
@@ -93,7 +107,7 @@ def complete_task(task_id: int) -> None:
     """
     Marca una tarea como completada.
     """
-    task = controller.complete_task(task_id)
+    task = get_controller().complete_task(task_id)
 
     ui.show_success(
         f"La tarea #{task.id} fue marcada como completada."
@@ -114,7 +128,7 @@ def remove_task(
     """
     Elimina una tarea.
     """
-    task = controller.get_task(task_id)
+    task = get_controller().get_task(task_id)
 
     if not yes and not ui.confirm(
         f"¿Desea eliminar la tarea #{task.id}?"
@@ -122,7 +136,7 @@ def remove_task(
         ui.show_warning("Operación cancelada.")
         return
 
-    controller.delete_task(task_id)
+    get_controller().delete_task(task_id)
 
     ui.show_success(
         f"La tarea #{task_id} fue eliminada."
@@ -135,7 +149,7 @@ def show_task(task_id: int) -> None:
     """
     Muestra una tarea específica.
     """
-    task = controller.get_task(task_id)
+    task = get_controller().get_task(task_id)
     ui.show_task(task)
 
 
@@ -145,7 +159,7 @@ def pending_tasks() -> None:
     """
     Lista únicamente las tareas pendientes.
     """
-    tasks = controller.pending_tasks()
+    tasks = get_controller().pending_tasks()
 
     ui.show_tasks(tasks)
 
@@ -162,7 +176,7 @@ def completed_tasks() -> None:
     """
     Lista únicamente las tareas completadas.
     """
-    tasks = controller.completed_tasks()
+    tasks = get_controller().completed_tasks()
 
     ui.show_tasks(tasks)
 
@@ -182,7 +196,7 @@ def update_task(
     """
     Actualiza la descripción de una tarea.
     """
-    task = controller.update_description(
+    task = get_controller().update_description(
         task_id,
         description,
     )
@@ -198,7 +212,7 @@ def search_tasks(query: str) -> None:
     """
     Busca tareas por coincidencia de texto en la descripción.
     """
-    tasks = controller.search_tasks(query)
+    tasks = get_controller().search_tasks(query)
 
     if not tasks:
         ui.show_warning(
@@ -227,19 +241,19 @@ def clear_completed(
     """
     Elimina todas las tareas completadas.
     """
-    if controller.completed_count() == 0:
+    if get_controller().completed_count() == 0:
         ui.show_warning(
             "No existen tareas completadas."
         )
         return
 
     if not yes and not ui.confirm(
-        f"¿Desea eliminar las {controller.completed_count()} tareas completadas?"
+        f"¿Desea eliminar las {get_controller().completed_count()} tareas completadas?"
     ):
         ui.show_warning("Operación cancelada.")
         return
 
-    removed = controller.clear_completed_tasks()
+    removed = get_controller().clear_completed_tasks()
 
     ui.show_success(
         f"Se eliminaron {removed} tarea(s) completada(s)."
@@ -253,9 +267,9 @@ def statistics() -> None:
     Muestra estadísticas generales.
     """
     ui.show_statistics(
-        total=controller.task_count(),
-        pending=controller.pending_count(),
-        completed=controller.completed_count(),
+        total=get_controller().task_count(),
+        pending=get_controller().pending_count(),
+        completed=get_controller().completed_count(),
     )
 
 

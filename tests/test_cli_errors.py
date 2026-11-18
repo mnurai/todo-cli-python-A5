@@ -17,7 +17,7 @@ runner = CliRunner()
 def db(tmp_path, monkeypatch):
     path = tmp_path / "tasks.json"
     monkeypatch.setenv("TODO_CLI_PATH", str(path))
-    monkeypatch.setattr(main, "controller", main.TaskController.create_default(path))
+    monkeypatch.setattr(main, "_controller", main.TaskController.create_default(path))
     return path
 
 

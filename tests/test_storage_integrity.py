@@ -65,7 +65,7 @@ def test_failed_write_keeps_previous_file_intact(tmp_path, monkeypatch):
 def test_cli_reports_corrupted_file_and_leaves_it_untouched(tmp_path, monkeypatch):
     path = tmp_path / "tasks.json"
     path.write_text(TRUNCATED, encoding="utf-8")
-    monkeypatch.setattr(main, "controller", main.TaskController.create_default(path))
+    monkeypatch.setattr(main, "_controller", main.TaskController.create_default(path))
 
     runner = CliRunner()
     for args in (["list"], ["add", "new task"], ["stats"]):

@@ -4,11 +4,11 @@
 [![Python 3.10+](https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.13-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
 [![CLI: Typer](https://img.shields.io/badge/CLI-Typer-2E8B57?style=for-the-badge&logo=fastapi&logoColor=white)](https://typer.tiangolo.com/)
 [![Terminal: Rich](https://img.shields.io/badge/Terminal-Rich-9A32CD?style=for-the-badge)](https://rich.readthedocs.io/)
-[![Tests](https://img.shields.io/badge/Tests-18%20Passed-brightgreen?style=for-the-badge&logo=pytest&logoColor=white)](https://docs.pytest.org/)
+[![Tests](https://img.shields.io/badge/Tests-33%20Passed-brightgreen?style=for-the-badge&logo=pytest&logoColor=white)](https://docs.pytest.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow?style=for-the-badge)](LICENSE)
 [![Español](https://img.shields.io/badge/Idioma-Espa%C3%B1ol-orange?style=for-the-badge)](README.es.md)
 
-A lightweight, robust, and extensible command-line task management application built in Python using **Typer**, **Rich**, and a layered **SOLID** architecture. Features portable JSON persistence, case-insensitive keyword search, non-interactive scriptability (`--yes`), rich terminal tables, and 100% automated test coverage.
+A lightweight, robust, and extensible command-line task management application built in Python using **Typer**, **Rich**, and a layered **SOLID** architecture. Features portable JSON persistence, case-insensitive keyword search, non-interactive scriptability (`--yes`), rich terminal tables, and an automated test suite (82% line coverage, measured with coverage.py).
 
 > 🌐 **Language / Idioma:** English | [Leer documentación en Español](README.es.md)
 
@@ -35,7 +35,7 @@ A lightweight, robust, and extensible command-line task management application b
 - **Smart Path Resolution:** Stores user tasks in `~/.todo_cli/tasks.json` by default (or customizable via `TODO_CLI_PATH` environment variable and local `./data/tasks.json` fallback).
 - **Automation Ready:** Commands like `remove` and `clear-completed` support the `--yes / -y` flag for seamless shell scripting and CI/CD pipelines.
 - **Broad Compatibility:** Supports **Python 3.10, 3.11, 3.12, and 3.13**.
-- **Production Tested:** Complete test suite covering models, storage resilience (corrupted file recovery), business rules, and CLI invocation via `CliRunner`.
+- **Production Tested:** Complete test suite covering models, storage safety (a damaged task file is reported and never overwritten), business rules, and CLI invocation via `CliRunner`.
 
 ---
 
@@ -50,7 +50,7 @@ todo-cli-python/
 │   ├── test_cli.py              # CLI integration tests via CliRunner
 │   ├── test_controllers.py      # Business logic & error handling unit tests
 │   ├── test_models.py           # Dataclass serialization unit tests
-│   └── test_storage.py          # Persistence, corrupt JSON recovery & protocol tests
+│   └── test_storage.py          # Persistence & protocol tests (+ test_storage_integrity.py)
 ├── todo_cli/
 │   ├── __init__.py              # Package entry point
 │   ├── controllers.py           # TaskController business logic
@@ -162,6 +162,28 @@ Run static analysis with `ruff`:
 ```bash
 ruff check .
 ```
+
+Optional checks that are not yet part of CI:
+
+```bash
+pip install mypy build
+mypy todo_cli        # type check
+python -m build      # build sdist + wheel
+```
+
+> **Install in editable mode for development** (`pip install -e ".[test]"`). With a normal
+> `pip install .`, the `todo` command keeps running the old copy until you reinstall.
+
+### Data-file safety
+
+If `tasks.json` contains invalid JSON or an unexpected structure, every command stops with an
+error message and exit code 1 and **leaves the file untouched**. Fix or restore the file and run
+the command again. Writes are atomic (temporary file + rename).
+
+### Working with AI coding agents
+
+Agents must follow [`AGENTS.md`](AGENTS.md): safe commands, forbidden actions and review gates.
+When running the CLI by hand, set `TODO_CLI_PATH` to a temporary file so your real tasks are not touched.
 
 All pushes and pull requests trigger automated matrix testing across Python 3.10, 3.11, 3.12, and 3.13 via **GitHub Actions**.
 

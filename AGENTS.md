@@ -28,7 +28,7 @@ Storage path priority: `TODO_CLI_PATH` env var → `./data/tasks.json` if it exi
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate          # Windows: .venv\Scripts\activate
-pip install ".[test]"
+pip install -e ".[test]"
 ```
 
 ## 4. Safe commands (allowed without asking)
